@@ -1,0 +1,27 @@
+# ECU Platform V2 local build artifacts
+/build/
+/out/
+.cmake/
+CMakeUserPresets.json
+
+# Editor / OS noise
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Portable Python / Node tooling — generated locally, never committed
+**/__pycache__/
+**/*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+node_modules/
+
+# Sensitive physical bench traces stay in local operator-owned storage
+*.candump
+*.pcap
+*.pcapng
+.env
+.env.local
+build/
