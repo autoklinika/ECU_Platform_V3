@@ -67,7 +67,7 @@ void lock_survives_nothing_but_its_process_even_sigkill() {
   if (child == 0) {
     lx::FlockExclusiveLock held{path};
     const char ok = held.try_acquire() == rt::LockStatus::acquired ? '1' : '0';
-    (void)::write(ready[1], &ok, 1);
+    if (::write(ready[1], &ok, 1) != 1) ::_exit(2);
     for (;;) ::pause();
   }
   char ok = '0';
