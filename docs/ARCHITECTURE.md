@@ -86,7 +86,24 @@ Platform                    Linux: SocketCAN, zegar; później RS485, Windows/J2
 Moduły „później” powstaną dopiero wtedy, gdy będą dwa rzeczywiste przypadki
 użycia (SAC i pierwszy aktuator), z których da się wyprowadzić kontrakt.
 
-## 5. Czego V3 świadomie nie robi
+## 5. Decyzje projektowe
+
+**D1 — konfiguracja łącza przez `ip`, nie własny netlink (krok 1).**
+Rdzeń V2 tylko sprawdza konfigurację łącza, nie ustawia jej. Do ustawiania V3
+używa `ip` z dokładnie tymi poleceniami, które działały na CM5 w V2, ale
+wywoływanymi wyłącznie przy zmianie konfiguracji (połączenie, zmiana
+prędkości), a nie przy każdym pomiarze. Odczyt stanu idzie przez netlink
+(kod V2). Własna implementacja zapisu przez netlink jest możliwa później za
+tym samym interfejsem `ICanLinkControl`, gdy da się ją przetestować na sprzęcie.
+
+**D2 — listen-only i brak ACK (krok 1 → 2).** W trybie listen-only kontroler
+nie wysyła ACK. Jeśli sterownik jest jedynym innym węzłem, widzi wtedy brak
+potwierdzenia — tak samo jak przy wyłączonym CM5. Przy nieznanej prędkości
+to i tak najmniej inwazyjna opcja (tryb normal na złej prędkości wysyła ramki
+błędów). Dlatego nasłuch ma trwać tylko do pierwszej poprawnej ramki, po czym
+łącze przechodzi w tryb normal na wykrytej prędkości.
+
+## 6. Czego V3 świadomie nie robi
 
 - Nie zmienia Core V2 bez osobnego, uzasadnionego commitu z testem.
 - Nie ma Bench Agenta ani żadnego drugiego procesu z dostępem do CAN.

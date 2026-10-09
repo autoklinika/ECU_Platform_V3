@@ -1,0 +1,50 @@
+# ECU Platform V3 — Bench Runtime (Krok 1: właściciel CAN)
+#
+# Wersja do weryfikacji na stanowisku. Docelowy instalator powstanie w kroku 8.
+# UWAGA: przed uruchomieniem zatrzymaj usługi V2, które same sterują can0
+# (ecu-sac-connect-v1, ecu-platform-v2-bench-agent) — nie znają blokady V3,
+# a runtime traktuje ich zmiany jako obce i przywraca stan bezpieczny.
+
+[Unit]
+Description=ECU Platform V3 Bench Runtime (single CAN owner)
+After=network-pre.target
+Conflicts=ecu-sac-connect-v1.service ecu-platform-v2-bench-agent.service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/libexec/ecu-platform-v3/ecu_bench_runtime --interface can0 --lock-dir /run/ecu-bench
+# Runs also after a crash or SIGKILL, when the runtime cannot clean up itself.
+ExecStopPost=/usr/sbin/ip link set can0 down
+Restart=on-failure
+RestartSec=2
+TimeoutStopSec=10
+KillSignal=SIGTERM
+KillMode=mixed
+
+RuntimeDirectory=ecu-bench
+RuntimeDirectoryMode=0750
+
+# Root only for CAP_NET_ADMIN; everything else is removed.
+User=root
+CapabilityBoundingSet=CAP_NET_ADMIN
+AmbientCapabilities=
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+SystemCallArchitectures=native
+RestrictAddressFamilies=AF_UNIX AF_NETLINK AF_CAN
+IPAddressDeny=any
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

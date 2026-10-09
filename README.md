@@ -16,8 +16,12 @@ Pochodzenie zaimportowanego kodu: [`docs/SOURCE.md`](docs/SOURCE.md).
 
 ## Stan
 
-Krok 0 — szkielet: zaimportowany rdzeń V2, build i 29 testów regresyjnych.
-Runtime, API i GUI powstają w kolejnych krokach.
+- Krok 0 — szkielet: zaimportowany rdzeń V2, build, 29 testów regresyjnych.
+- Krok 1 — właściciel CAN: `ecu_bench_runtime` przejmuje `can0` na wyłączność,
+  wymusza stan bezpieczny, koryguje obce zmiany i sprząta przy zatrzymaniu.
+  Weryfikacja na stanowisku: [`docs/BENCH_CHECKS.md`](docs/BENCH_CHECKS.md).
+
+Sesja SAC, pomiary, API i GUI powstają w kolejnych krokach.
 
 ## Build i testy
 
@@ -38,7 +42,11 @@ src/core_v2/              protokoły: CAN, ISO-TP, UDS, J1939, ISOBUS (przenośn
 src/bench/                sesja stanowiska, zasoby, cykl życia operacji (przenośne)
 src/dut_profile/          model profilu DUT (przenośny)
 src/dut_profiles/daf_sac/ profil DAF SAC 250k/500k
+src/runtime/              Bench Runtime (przenośny): właściciel CAN, później sesja
 src/platform/linux/v2/    adaptery Linux: SocketCAN, zegar
+src/platform/linux/runtime/ Linux: blokada flock, sterowanie łączem przez ip
+apps/ecu_bench_runtime/   program runtime
+deploy/systemd/           unit systemd do weryfikacji na stanowisku
 tests/                    testy regresyjne rdzenia
 docs/                     architektura, plan, pochodzenie kodu
 ```

@@ -26,10 +26,13 @@ add_subdirectory(src/core_v2)
 add_subdirectory(src/bench)
 add_subdirectory(src/dut_profile)
 add_subdirectory(src/dut_profiles/daf_sac)
+add_subdirectory(src/runtime)
 
 # Platform layer.
 if(ECU_BUILD_LINUX_PLATFORM)
   add_subdirectory(src/platform/linux/v2)
+  add_subdirectory(src/platform/linux/runtime)
+  add_subdirectory(apps/ecu_bench_runtime)
 endif()
 
 if(ECU_BUILD_TESTS)

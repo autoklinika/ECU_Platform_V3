@@ -10,22 +10,30 @@ właściciela przed następnym. „Tutaj” = testy bez sprzętu (symulowany CAN
 - Build CMake, 29 testów regresyjnych przechodzi.
 - Dokumenty: architektura, zasady, pochodzenie kodu, ten plan.
 
-## Krok 1 — Właściciel CAN
+## Krok 1 — Właściciel CAN ✅ (do weryfikacji na stanowisku)
 
-- Klasa `CanOwner`: wyłączna blokada (`flock`), konfiguracja interfejsu
-  (prędkość, tryb normal / listen-only), sprzątanie przy starcie i SIGTERM,
-  odczyt liczników błędów i stanu bus-off.
-- Symulowany sterownik CAN do testów (magistrala w pamięci, model błędnej
-  prędkości).
-- Tutaj: testy blokady, sprzątania, przełączania trybów.
-- Stanowisko: `can0` w stanie DOWN po zabiciu procesu (`kill -9`) i restarcie.
+- `CanOwner` (przenośny): link nigdy nie jest ruszany bez blokady; przejęcie
+  zawsze wymusza DOWN; każda zmiana jest weryfikowana odczytem; każda porażka
+  kończy się DOWN albo stanem `fault`, który blokuje konfigurację.
+- Linux: blokada `flock` (zwalniana przez jądro nawet po SIGKILL), sterowanie
+  łączem przez `ip` z poleceniami sprawdzonymi w V2, bez powłoki, z limitem
+  czasu i pustym środowiskiem.
+- Program `ecu_bench_runtime`: przejęcie, opcjonalne utrzymanie konfiguracji,
+  korekta obcych zmian co 1 s, sprzątanie przy SIGTERM/SIGINT/SIGHUP.
+- Unit systemd z `ExecStopPost` i ograniczeniami (`deploy/systemd/`).
+- Tutaj: 31 testów jednostkowych + test end-to-end programu (blokada, SIGTERM,
+  SIGKILL, złe argumenty). Testy sprawdzone mutacyjnie.
+- Stanowisko: `docs/BENCH_CHECKS.md`, sekcja „Krok 1”.
 
 ## Krok 2 — Sesja i wykrywanie prędkości
 
+- Symulowany sterownik CAN do testów (magistrala w pamięci, model błędnej
+  prędkości, brak ACK w listen-only) — przeniesiony z kroku 1.
 - Session Manager: `Idle → Wykrywanie → Identyfikacja → Połączony → Utracony`.
 - Wykrywanie prędkości nasłuchem (FEAE i inne ramki SAC), dopiero potem UDS
   F190/F188/F192 na wykrytej prędkości. Ostatnia znana prędkość próbowana
-  pierwsza.
+  pierwsza. Nasłuch możliwie krótki: po pierwszej poprawnej ramce przejście
+  w tryb normal (ACK) — uwzględniając wynik punktu 3 i 6 z kroku 1.
 - Tutaj: SAC 250k i 500k w symulacji, brak nadawania na złej prędkości.
 - Stanowisko: identyfikacja SAC, `candump` bez ramek błędów podczas łączenia.
 

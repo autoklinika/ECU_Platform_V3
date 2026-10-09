@@ -22,6 +22,10 @@ jobs:
           - name: portable-without-linux-layer
             cxx: g++
             linux: "OFF"
+          - name: linux-gcc-asan-ubsan
+            cxx: g++
+            linux: "ON"
+            flags: "-fsanitize=address,undefined -fno-sanitize=vptr -fno-omit-frame-pointer"
     steps:
       - uses: actions/checkout@v4
       - name: Install build tools
@@ -31,7 +35,11 @@ jobs:
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
           -DCMAKE_CXX_COMPILER=${{ matrix.cxx }}
           -DECU_BUILD_LINUX_PLATFORM=${{ matrix.linux }}
+          "-DCMAKE_CXX_FLAGS=${{ matrix.flags }}"
+          "-DCMAKE_EXE_LINKER_FLAGS=${{ matrix.flags }}"
       - name: Build
         run: cmake --build build --parallel
       - name: Test
+        env:
+          UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
         run: ctest --test-dir build --output-on-failure
