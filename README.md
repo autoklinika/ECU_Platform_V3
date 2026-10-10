@@ -43,6 +43,7 @@ src/core_v2/                 protokoły CAN/ISO-TP/UDS/J1939/ISOBUS (z V2, bez z
 src/runtime/                 Bench Runtime (przenośny): właściciel CAN
 src/platform/linux/runtime/  Linux: blokada flock, sterowanie łączem, zapytanie rtnetlink
 apps/ecu_bench_runtime/      program runtime
+tools/bench/                 automatyczne sprawdzenia na stanowisku (CM5)
 deploy/systemd/              unit systemd do weryfikacji na stanowisku
 tests/                       testy Core V2 i V3
 docs/                        architektura, plan, pochodzenie, sprawdzenia

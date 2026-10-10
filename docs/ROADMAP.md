@@ -24,6 +24,8 @@ Wszystko poza Core V2 jest pisane od nowa; V1/V2 służą tylko jako wiedza.
 - Program `ecu_bench_runtime`: przejęcie, opcjonalne utrzymanie konfiguracji,
   korekta obcych zmian co 1 s, sprzątanie przy SIGTERM/SIGINT/SIGHUP.
 - Unit systemd z `ExecStopPost` i ograniczeniami uprawnień.
+- Sprawdzenie na stanowisku jednym poleceniem: `tools/bench/krok1.sh`
+  (tylko listen-only), testowane w CI na symulowanym stanowisku.
 
 ## Krok 2 — Adapter SocketCAN dla Core V2
 

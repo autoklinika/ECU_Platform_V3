@@ -20,67 +20,56 @@ sudo systemctl stop ecu-kiosk ecu-sac-connect-v1 ecu-platform-v2-bench-agent
 
 ## Krok 1 — właściciel CAN
 
-Sterownik: DAF SAC 500 kbit/s. V3 nie umie jeszcze czytać DTC (krok 8),
-więc w tym kroku nie porównujemy DTC — testy są krótkie, a w punkcie 3
-notujemy zachowanie magistrali, które ocenimy w kroku 3.
+Sterownik: DAF SAC 500 kbit/s, zasilony i podłączony do `can0`.
+V3 nie umie jeszcze czytać DTC (krok 8), więc w tym kroku nie porównujemy
+DTC. Test jest bezpieczny dla sterownika: `can0` jest konfigurowane
+**wyłącznie w trybie listen-only** — CM5 tylko słucha, nic nie nadaje i nie
+wysyła ramek błędów, także gdy celowo ustawiamy złą prędkość (punkt 4).
+
+### Uruchomienie (ok. 30 s)
 
 ```bash
-R=./build/apps/ecu_bench_runtime/ecu_bench_runtime
-sudo mkdir -p /run/ecu-bench-test
+cd ~/ECU_Platform_V3
+git pull
+cmake --build build --parallel 2 && ctest --test-dir build
+sudo systemctl stop ecu-kiosk ecu-sac-connect-v1 ecu-platform-v2-bench-agent
+sudo tools/bench/krok1.sh 2>&1 | tee krok1.log
 ```
 
-Proces zatrzymujemy przez `pkill -x ecu_bench_runtime`, a nie `kill %1`:
-`%1` to proces `sudo`, a SIGKILL wysłany do `sudo` nie dociera do runtime.
+Skrypt sam sprawdza, czy usługi V2 są zatrzymane, wykonuje 5 sprawdzeń,
+na końcu wyłącza `can0` i wypisuje `KROK 1: PASS` albo `KROK 1: FAIL`.
+Prześlij plik `krok1.log` (albo wklej jego zawartość).
 
-**1. Start wymusza stan bezpieczny.**
+Po teście uruchom ponownie usługi V2:
 ```bash
-sudo ip link set can0 type can bitrate 500000 && sudo ip link set can0 up
-sudo $R --interface can0 --lock-dir /run/ecu-bench-test &
-sleep 1; ip -details link show can0 | head -3     # oczekiwane: state DOWN
-sudo pkill -TERM -x ecu_bench_runtime; wait
+sudo systemctl start ecu-platform-v2-bench-agent ecu-sac-connect-v1 ecu-kiosk
 ```
-Oczekiwane zdarzenia: `acquired` z `"up":false`, potem `signal`, `released`.
 
-**2. Drugi właściciel jest odrzucany.**
-```bash
-sudo $R --interface can0 --lock-dir /run/ecu-bench-test &
-sleep 1; sudo $R --interface can0 --lock-dir /run/ecu-bench-test; echo "exit=$?"
-sudo pkill -TERM -x ecu_bench_runtime; wait
-```
-Oczekiwane: `lock_busy`, `exit=75`.
+### Co jest sprawdzane
 
-**3. Utrzymanie konfiguracji listen-only i odbiór.**
-```bash
-sudo $R --interface can0 --lock-dir /run/ecu-bench-test --hold 500000:listen &
-sleep 1; ip -details link show can0 | grep -E 'state|bitrate|LISTEN'
-timeout 5 candump -t a can0 | grep -c '18FEAE30'   # ramki FEAE od SAC
-sudo pkill -TERM -x ecu_bench_runtime; wait
-```
-Oczekiwane: `UP`, `bitrate 500000`, `LISTEN-ONLY`, kilka ramek FEAE.
-Uwaga: w trybie listen-only CM5 nie potwierdza (ACK) ramek. Jeśli SAC jest
-jedynym innym węzłem, widzi brak ACK — tak samo jak przy wyłączonym CM5.
-Ramki FEAE mogą się wtedy powtarzać w `candump` (retransmisje) — zanotuj
-liczbę ramek i czy się powtarzają; to dane wejściowe dla kroku 3.
+| # | Sprawdzenie | Dlaczego |
+|---|---|---|
+| 1 | Łącze pozostawione UP zostaje wyłączone **od razu przy przejęciu**; SIGTERM kończy się zwolnieniem | V2 zostawiało `can0` UP po restarcie i blokowało stanowisko |
+| 2 | Drugi proces nie dostaje łącza (`exit 75`) i go nie dotyka | dwóch właścicieli jednego łącza w V2 |
+| 3 | Utrzymanie `500000` + listen-only, odbiór ramek SAC, a po SIGTERM łącze DOWN | dane o magistrali do kroku 3 (patrz niżej) |
+| 4 | Obca zmiana konfiguracji (inna prędkość, listen-only) jest cofana w ≤ 3 s | nikt poza runtime nie steruje łączem |
+| 5 | Po `kill -9` (bez sprzątania) nowy właściciel natychmiast wymusza DOWN | awaria procesu nie może zablokować stanowiska |
 
-**4. Obca zmiana jest korygowana.**
-```bash
-sudo $R --interface can0 --lock-dir /run/ecu-bench-test &
-sleep 1; sudo ip link set can0 type can bitrate 250000 && sudo ip link set can0 up
-sleep 2; ip -details link show can0 | head -3     # oczekiwane: state DOWN
-sudo pkill -TERM -x ecu_bench_runtime; wait
-```
-Oczekiwane zdarzenie: `foreign_change_corrected`.
+Punkt 3 wypisuje dane potrzebne do zaprojektowania kroku 3 (wykrywanie
+prędkości): liczbę ramek FEAE i ich średni okres, liczbę powtórzeń (ramki
+tej samej treści w odstępie < 5 ms — retransmisje, gdy nikt nie potwierdza
+ACK), listę identyfikatorów nadawanych przez SAC oraz liczniki błędów
+kontrolera przed i po.
 
-**5. Awaria procesu (SIGKILL) nie blokuje stanowiska.**
-```bash
-sudo $R --interface can0 --lock-dir /run/ecu-bench-test --hold 500000:normal &
-sleep 1; sudo pkill -KILL -x ecu_bench_runtime; wait
-ip -details link show can0 | head -3   # UP — proces nie mógł posprzątać
-sudo $R --interface can0 --lock-dir /run/ecu-bench-test &
-sleep 1; ip -details link show can0 | head -3   # DOWN — nowy właściciel wymusił
-sudo pkill -TERM -x ecu_bench_runtime; wait
-```
-To jest dokładnie scenariusz, który w V2 blokował stanowisko („zajęte”).
-Jako usługa systemd dodatkowo działa `ExecStopPost` (`deploy/systemd/`).
+Skrypt jest testowany w CI na symulowanym stanowisku
+(`tests/bench_krok1_sim.sh`): poprawny runtime przechodzi, a każda
+wstrzyknięta usterka (brak DOWN przy przejęciu, brak korekty, brak DOWN przy
+SIGTERM) daje FAIL dokładnie w odpowiednim punkcie.
 
-Po testach: `sudo ip link set can0 down`, uruchom ponownie usługi V2.
+### Gdy coś pójdzie nie tak
+
+- `Usługa … działa` — zatrzymaj wskazaną usługę i uruchom skrypt ponownie.
+- `Brak candump` — `sudo apt install can-utils`.
+- `3. odbiór ramek FEAE — 0 ramek` — sprawdź zasilanie SAC i przewody CAN;
+  jeśli to wariant 250 kbit/s: `sudo BITRATE=250000 tools/bench/krok1.sh …`.
+- Przerwanie skryptu (Ctrl+C) zawsze kończy się wyłączeniem `can0`.

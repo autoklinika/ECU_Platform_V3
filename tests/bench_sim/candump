@@ -1,0 +1,12 @@
+#!/bin/bash
+# Fake candump -e -L: two FEAE frames per second (the second one a 0.3 ms
+# retransmission) and one other broadcast, in candump log format.
+awk 'BEGIN {
+  t = 1700000000
+  for (i = 1; i <= 5; i++) {
+    printf "(%.6f) can0 18FEAE30#FF0A0BFFFFFFFFFF\n", t + i
+    printf "(%.6f) can0 18FEAE30#FF0A0BFFFFFFFFFF\n", t + i + 0.0003
+    printf "(%.6f) can0 18F00430#1122334455667788\n", t + i + 0.1
+  }
+}'
+sleep 0.2

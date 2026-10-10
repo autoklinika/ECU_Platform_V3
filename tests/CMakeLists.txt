@@ -36,3 +36,10 @@ if(TARGET ECU::platform_linux_runtime)
     COMMAND sh ${CMAKE_CURRENT_SOURCE_DIR}/runtime_app_e2e.sh
             $<TARGET_FILE:ecu_bench_runtime>)
 endif()
+
+# Bench check scripts: syntax and behaviour on a simulated bench (no hardware).
+find_program(ECU_BASH bash)
+if(ECU_BASH AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  add_test(NAME ecu_bench_krok1_sim
+    COMMAND ${ECU_BASH} ${CMAKE_CURRENT_SOURCE_DIR}/bench_krok1_sim.sh)
+endif()
