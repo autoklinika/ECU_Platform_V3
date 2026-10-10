@@ -12,7 +12,7 @@ Wszystko poza Core V2 jest pisane od nowa; V1/V2 służą tylko jako wiedza.
 - Core V2 z V2 bez zmian, z 20 testami regresyjnymi.
 - Zasady, decyzje, pochodzenie kodu, ten plan.
 
-## Krok 1 — Właściciel CAN ✅ (do weryfikacji na stanowisku)
+## Krok 1 — Właściciel CAN ✅ (PASS na stanowisku 2026-10-10)
 
 - `CanOwner` (przenośny): łącze nigdy nie jest ruszane bez blokady; przejęcie
   zawsze wymusza DOWN; każda zmiana jest weryfikowana odczytem; każda porażka
@@ -39,9 +39,10 @@ Wszystko poza Core V2 jest pisane od nowa; V1/V2 służą tylko jako wiedza.
 
 ## Krok 3 — Wykrywanie prędkości nasłuchem
 
-- Listen-only na kolejnych prędkościach (ostatnia znana pierwsza), decyzja na
-  podstawie poprawnych ramek i liczników błędów; po pierwszej poprawnej ramce
-  przejście w tryb normal. Bez nadawania na niepotwierdzonej prędkości.
+- Listen-only na kolejnych prędkościach (ostatnia znana pierwsza), krótkie
+  okno na kandydata; po pierwszej poprawnej ramce natychmiastowe przejście
+  w tryb normal (ACK). Bez nadawania na niepotwierdzonej prędkości.
+  Założenia potwierdzone pomiarem — `docs/ARCHITECTURE.md`, D2.
 - Stanowisko: SAC 500k (i 250k, jeśli dostępny), `candump` bez ramek błędów.
 
 ## Krok 4 — Profil DAF SAC i identyfikacja

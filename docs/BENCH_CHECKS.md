@@ -82,9 +82,23 @@ SIGTERM) daje FAIL dokładnie w odpowiednim punkcie.
 
 ### Wyniki
 
-**2026-10-10, CM5 (MCP2518FD, jądro 6.18.50+rpt-rpi-2712), commit `b866d5f`:**
-punkty 1, 2, 4, 5 oraz zatrzymanie w punkcie 3 — **PASS** na prawdziwym
-sprzęcie. Odbiór w punkcie 3: 0 ramek przy 500 kbit/s. Wynik niemiarodajny:
-ta wersja skryptu używała `candump -e -L` (kombinacja odrzucana przez część
-wersji can-utils — znane z V2) i ukrywała komunikaty `candump`; poprawione
-w następnym commicie, do powtórzenia.
+**2026-10-10 08:53, CM5 (MCP2518FD, jądro 6.18.50+rpt-rpi-2712), DAF SAC
+500 kbit/s, commit `969dab0`: KROK 1 — PASS (8/8).**
+Pełny log: [`evidence/2026-10-10_krok1_cm5_sac500k.log`](evidence/2026-10-10_krok1_cm5_sac500k.log).
+
+Obserwacje z magistrali (punkt 3, listen-only, 5 s):
+
+- jądro: 15 748 ramek, 0 błędów RX, 0 odrzuconych; `candump`: 15 720
+  (różnica = brzegi okna pomiaru);
+- **jedna i ta sama ramka**: `18FEAE30#FFFFFEFEFFFFFFFF`, co ~0,32 ms
+  (≈ 3 144 ramek/s) — to retransmisje: SAC jest jedynym węzłem, nikt nie
+  potwierdza ACK, więc w kółko powtarza pierwszą ramkę i nie przechodzi do
+  następnych komunikatów;
+- bajty ciśnień `FE FE` = „błąd/niedostępne” wg J1939 — bez potwierdzenia
+  ACK nie wiadomo, czy to stan czujników, czy skutek braku partnera;
+- liczniki błędów kontrolera CM5: 0/0 (w listen-only CM5 nie nadaje).
+
+Wnioski dla kroku 3 — w `docs/ARCHITECTURE.md`, decyzja D2.
+
+Wcześniejszy przebieg (commit `b866d5f`): punkty właściciela CAN PASS,
+odbiór 0 ramek — niemiarodajny (błąd skryptu: `candump -e -L`), poprawiony.

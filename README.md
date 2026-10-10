@@ -23,7 +23,7 @@ właścicielem sprzętu i sesji DUT, a GUI tylko wyświetla jego stan.
 - **Właściciel CAN:** `ecu_bench_runtime` przejmuje `can0` na wyłączność,
   wymusza stan bezpieczny, koryguje obce zmiany i sprząta przy zatrzymaniu.
   Stan łącza (prędkość, tryb, stan błędów, liczniki) czyta własnym zapytaniem
-  rtnetlink.
+  rtnetlink. **Sprawdzone na stanowisku (CM5 + DAF SAC 500k): PASS 8/8.**
 
 ## Build i testy
 

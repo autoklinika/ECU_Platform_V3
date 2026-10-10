@@ -99,12 +99,30 @@ ISO 11898-1, liczniki TEC/REC) to własne zapytanie rtnetlink, testowane na
 syntetycznych komunikatach jądra. Zapis przez rtnetlink można dodać później
 za tym samym interfejsem `ICanLinkControl`, gdy będzie testowalny na sprzęcie.
 
-**D2 — listen-only i brak ACK.** W trybie listen-only kontroler
-nie wysyła ACK. Jeśli sterownik jest jedynym innym węzłem, widzi wtedy brak
-potwierdzenia — tak samo jak przy wyłączonym CM5. Przy nieznanej prędkości
-to i tak najmniej inwazyjna opcja (tryb normal na złej prędkości wysyła ramki
-błędów). Dlatego nasłuch ma trwać tylko do pierwszej poprawnej ramki, po czym
-łącze przechodzi w tryb normal na wykrytej prędkości.
+**D2 — listen-only i brak ACK.** W trybie listen-only kontroler nie wysyła
+ACK. Jeśli sterownik jest jedynym innym węzłem, nikt nie potwierdza jego
+ramek. Przy nieznanej prędkości to i tak najmniej inwazyjna opcja (tryb
+normal na złej prędkości wysyła ramki błędów).
+
+Pomiar na stanowisku (2026-10-10, SAC 500 kbit/s, `docs/BENCH_CHECKS.md`):
+w listen-only przy właściwej prędkości CM5 odbiera **tę samą ramkę FEAE
+powtarzaną co ~0,32 ms** (≈ 3 100 ramek/s) — sterownik bez ACK retransmituje
+pierwszą ramkę bez końca. Przy złej prędkości (dane z V2): 0 ramek, 0 błędów.
+
+Konsekwencje dla wykrywania prędkości (krok 3):
+1. Rozstrzygnięcie jest niemal natychmiastowe: przy właściwej prędkości
+   pierwsza poprawna ramka przychodzi w < 1 ms; okno nasłuchu na kandydata
+   może być krótkie (rzędu 100–200 ms), co ogranicza czas bez ACK.
+2. Po pierwszej poprawnej ramce łącze od razu przechodzi w tryb normal na tej
+   prędkości — CM5 zaczyna potwierdzać ACK, sterownik przestaje
+   retransmitować i wraca do normalnego harmonogramu.
+3. Zalewu retransmisji nie wolno trzymać długo: V2 raz zanotowało przy nim
+   przepełnienie kolejki RX (`rx-overflow`).
+4. Treść ramek odebranych bez ACK (np. `FE FE` w FEAE) nie jest pomiarem —
+   pomiary liczą się dopiero w trybie normal.
+5. Sterownik, który sam nic nie nadaje, nie zostanie wykryty nasłuchem —
+   wtedy decyzję o prędkości podejmuje profil DUT lub operator, nigdy próby
+   nadawania na kolejnych prędkościach.
 
 ## 6. Czego V3 świadomie nie robi
 
