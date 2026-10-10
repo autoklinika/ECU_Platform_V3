@@ -1,0 +1,19 @@
+#!/bin/bash
+# Emulates ecu_bench_runtime for tools/bench tests. FAKE_BUG selects a fault:
+#   no_down     does not force DOWN when acquiring
+#   no_correct  does not correct foreign link changes
+#   no_release  does not force DOWN on SIGTERM
+lockdir=; hold=
+while [ $# -gt 0 ]; do case $1 in --lock-dir) lockdir=$2;; --hold) hold=$2;; esac; shift 2; done
+exec 9>"$lockdir/can0.lock"
+if ! flock -n 9; then echo '{"event":"lock_busy"}'; exit 75; fi
+[ "$FAKE_BUG" = no_down ] || ip link set can0 down
+u=$(ip -o link show can0 | grep -c ",UP,"); [ "$u" = 1 ] && u=true || u=false; echo "{\"event\":\"acquired\",\"owner\":\"safe\",\"result\":\"ok\",\"link\":{\"present\":true,\"up\":$u}}"
+if [ -n "$hold" ]; then r=${hold%%:*}; ip link set can0 type can bitrate $r listen-only on fd off; ip link set can0 up; echo '{"event":"configured","result":"ok"}'; fi
+term() { echo '{"event":"signal","detail":"SIGTERM"}'; [ "$FAKE_BUG" = no_release ] || ip link set can0 down; echo '{"event":"released"}'; exit 0; }
+trap term TERM
+while :; do
+  sleep 0.2 9>&- & wait $!
+  if [ -z "$hold" ] && ip -o link show can0 | grep -q ',UP,' && [ "$FAKE_BUG" != no_correct ]; then
+    ip link set can0 down; echo '{"event":"foreign_change_corrected"}'; fi
+done

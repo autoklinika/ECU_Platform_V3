@@ -1,0 +1,17 @@
+#!/bin/bash
+# Fake iproute2 for one CAN link (can0); state kept atomically in $FAKE_STATE.
+st="$FAKE_STATE"; [ -f "$st" ] || printf 'up=0\nrate=0\nlisten=0\n' > "$st"; . "$st"
+save() { printf 'up=%s\nrate=%s\nlisten=%s\n' "$up" "$rate" "$listen" > "$st.$$"; mv -f "$st.$$" "$st"; }
+flags() { [ "$up" = 1 ] && echo '<NOARP,UP,LOWER_UP,ECHO>' || echo '<NOARP,ECHO>'; }
+mode() { [ "$listen" = 1 ] && echo 'can <LISTEN-ONLY> state ERROR-ACTIVE' || echo 'can state ERROR-ACTIVE'; }
+case "$*" in
+  "-o link show can0") echo "3: can0: $(flags) mtu 16 qdisc pfifo_fast state $([ $up = 1 ] && echo UP || echo DOWN)";;
+  "link show can0") echo "3: can0: $(flags)";;
+  "-details link show can0"|"-details -statistics link show can0")
+     echo "3: can0: $(flags) mtu 16"; echo "    link/can"; echo "    $(mode) (berr-counter tx 0 rx 0) restart-ms 0"
+     echo "    bitrate $rate sample-point 0.875";;
+  "link set can0 down") up=0; save;;
+  "link set can0 up") up=1; save;;
+  "link set can0 type can bitrate "*) rate=$7; [ "$9" = on ] && listen=1 || listen=0; save;;
+  *) echo "fake ip: unsupported: $*" >&2; exit 1;;
+esac
