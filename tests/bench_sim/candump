@@ -1,12 +1,32 @@
 #!/bin/bash
-# Fake candump -e -L: two FEAE frames per second (the second one a 0.3 ms
-# retransmission) and one other broadcast, in candump log format.
-awk 'BEGIN {
-  t = 1700000000
-  for (i = 1; i <= 5; i++) {
-    printf "(%.6f) can0 18FEAE30#FF0A0BFFFFFFFFFF\n", t + i
-    printf "(%.6f) can0 18FEAE30#FF0A0BFFFFFFFFFF\n", t + i + 0.0003
-    printf "(%.6f) can0 18F00430#1122334455667788\n", t + i + 0.1
-  }
-}'
-sleep 0.2
+# Fake `candump -L can0` for tools/bench tests.
+#  - delivers frames only while the fake link is UP at FAKE_SAC_BITRATE
+#    (default 500000; "none" = no ECU on the bus): an FEAE frame plus a 0.3 ms
+#    retransmission and one other broadcast per simulated second;
+#  - counts delivered frames in $SYSFS_NET/can0/statistics/rx_packets;
+#  - FAKE_CANDUMP=refuse reproduces can-utils refusing an option combination:
+#    message on stderr, exit 0, while the kernel still receives frames;
+#  - otherwise runs until killed, like the real tool under `timeout`.
+. "$FAKE_STATE"
+sac="${FAKE_SAC_BITRATE:-500000}"
+stats="$SYSFS_NET/can0/statistics/rx_packets"
+frames=0
+[ "$up" = 1 ] && [ "$rate" = "$sac" ] && frames=15
+echo $(( $(cat "$stats") + frames )) > "$stats"
+if [ "${FAKE_CANDUMP:-}" = refuse ]; then
+  echo "Log file format selected: Please disable ASCII/BINARY/SWAP/RAWDLC options!" >&2
+  exit 0
+fi
+if [ "$frames" -gt 0 ]; then
+  awk 'BEGIN {
+    t = 1700000000
+    for (i = 1; i <= 5; i++) {
+      printf "(%.6f) can0 18FEAE30#FFFFFEFEFFFFFFFF\n", t + i
+      printf "(%.6f) can0 18FEAE30#FFFFFEFEFFFFFFFF\n", t + i + 0.0003
+      printf "(%.6f) can0 18EBFF30#0102030405060708\n", t + i + 0.1
+    }
+  }'
+fi
+trap 'exit 143' TERM
+sleep 60 &
+wait

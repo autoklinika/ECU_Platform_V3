@@ -52,14 +52,17 @@ sudo systemctl start ecu-platform-v2-bench-agent ecu-sac-connect-v1 ecu-kiosk
 | 1 | Łącze pozostawione UP zostaje wyłączone **od razu przy przejęciu**; SIGTERM kończy się zwolnieniem | V2 zostawiało `can0` UP po restarcie i blokowało stanowisko |
 | 2 | Drugi proces nie dostaje łącza (`exit 75`) i go nie dotyka | dwóch właścicieli jednego łącza w V2 |
 | 3 | Utrzymanie `500000` + listen-only, odbiór ramek SAC, a po SIGTERM łącze DOWN | dane o magistrali do kroku 3 (patrz niżej) |
-| 4 | Obca zmiana konfiguracji (inna prędkość, listen-only) jest cofana w ≤ 3 s | nikt poza runtime nie steruje łączem |
+| 4 | Obca zmiana konfiguracji (inna prędkość, listen-only) jest cofana w ≤ 5 s (runtime sprawdza łącze co 1 s) | nikt poza runtime nie steruje łączem |
 | 5 | Po `kill -9` (bez sprzątania) nowy właściciel natychmiast wymusza DOWN | awaria procesu nie może zablokować stanowiska |
 
 Punkt 3 wypisuje dane potrzebne do zaprojektowania kroku 3 (wykrywanie
-prędkości): liczbę ramek FEAE i ich średni okres, liczbę powtórzeń (ramki
-tej samej treści w odstępie < 5 ms — retransmisje, gdy nikt nie potwierdza
-ACK), listę identyfikatorów nadawanych przez SAC oraz liczniki błędów
-kontrolera przed i po.
+prędkości): liczbę ramek policzonych przez jądro i przez `candump`, ramki
+FEAE i ich średni odstęp, liczbę powtórzeń (ramki tej samej treści
+w odstępie < 5 ms — retransmisje, gdy nikt nie potwierdza ACK), listę
+identyfikatorów nadawanych przez SAC oraz liczniki błędów kontrolera.
+Jeśli przy zadanej prędkości nie ma żadnego ruchu, skrypt sam sprawdza
+drugą prędkość (nadal tylko listen-only) i podpowiada, czy to zła prędkość,
+czy brak sterownika na magistrali.
 
 Skrypt jest testowany w CI na symulowanym stanowisku
 (`tests/bench_krok1_sim.sh`): poprawny runtime przechodzi, a każda
@@ -70,6 +73,18 @@ SIGTERM) daje FAIL dokładnie w odpowiednim punkcie.
 
 - `Usługa … działa` — zatrzymaj wskazaną usługę i uruchom skrypt ponownie.
 - `Brak candump` — `sudo apt install can-utils`.
-- `3. odbiór ramek FEAE — 0 ramek` — sprawdź zasilanie SAC i przewody CAN;
-  jeśli to wariant 250 kbit/s: `sudo BITRATE=250000 tools/bench/krok1.sh …`.
+- `3. odbiór ramek FEAE — brak jakiegokolwiek ruchu` — przeczytaj linię
+  `WNIOSEK:` pod nim: albo uruchom ponownie z podaną prędkością
+  (`sudo BITRATE=250000 tools/bench/krok1.sh 2>&1 | tee krok1.log`), albo
+  sprawdź zasilanie SAC (KL30/KL15) i przewody CAN_H/CAN_L.
+- `candump nie działa` — skrypt pokazuje komunikat `candump`; wklej go.
 - Przerwanie skryptu (Ctrl+C) zawsze kończy się wyłączeniem `can0`.
+
+### Wyniki
+
+**2026-10-10, CM5 (MCP2518FD, jądro 6.18.50+rpt-rpi-2712), commit `b866d5f`:**
+punkty 1, 2, 4, 5 oraz zatrzymanie w punkcie 3 — **PASS** na prawdziwym
+sprzęcie. Odbiór w punkcie 3: 0 ramek przy 500 kbit/s. Wynik niemiarodajny:
+ta wersja skryptu używała `candump -e -L` (kombinacja odrzucana przez część
+wersji can-utils — znane z V2) i ukrywała komunikaty `candump`; poprawione
+w następnym commicie, do powtórzenia.

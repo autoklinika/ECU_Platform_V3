@@ -45,3 +45,12 @@ o ile będą potrzebne.
   (napięcia, 0,1 V/bit), PGN 0xFEAE od SA 0x30 (bajty 3–4, 0,08 bar/bit,
   0xFB–0xFF = niedostępne), warianty 250 i 500 kbit/s.
 - **Polecenia iproute2** do konfiguracji łącza CAN, działające na CM5.
+- **Nasłuch na CM5 (MCP2518FD), z dokumentacji V2:** w listen-only kontroler
+  odbiera ramki SAC mimo braku ACK; sterownik bez partnera ACK powtarza
+  ramkę bez przerwy (1,5–3,2 tys. ramek/s), co przy 500 kbit/s raz
+  przepełniło kolejkę RX (`CAN_ERR_CRTL rx-overflow`). Jedyny SAC na ławce
+  może nadawać FEAE z wartościami `FE` (ciśnienie niedostępne) albo
+  TP.DT `0x18EBFF30`. Na stanowisku są dwa SAC: 250 kbit/s
+  (SW `1973214`, HW `K075169`) i nowszy 500 kbit/s.
+- **`candump -L -e`** bywa odrzucane przez zainstalowane can-utils (komunikat
+  i kod 0) — wygląda wtedy jak cisza na magistrali.
